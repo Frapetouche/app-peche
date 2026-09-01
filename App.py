@@ -1,9 +1,6 @@
-# app-peche
-Pêche fish
 import streamlit as st
 import folium
 from streamlit_folium import st_folium
-import pandas as pd
 
 # Configuration ultra-scannable pour mobile et tablette
 st.set_page_config(page_title="Pêche QC - Navigation", page_icon="⚓", layout="wide")
@@ -80,32 +77,52 @@ st.markdown("---")
 if st.session_state.view_mode == "bathymetrie":
     st.info(f"🟢 **Affichage actuel : Bathymétrie de base** — {zone}. Les nuances bleues indiquent les structures et fosses.")
     m = folium.Map(location=current_coords, zoom_start=11, control_scale=True)
+    
+    # URL corrigée pour ESRI World Ocean Base
     folium.TileLayer(
-        tiles='https://arcgisonline.com{z}/{y}/{x}',
-        attr='Esri Ocean Basemap',
-        name='Bathymétrie',
+        tiles='https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}',
+        attr='Esri, Garmin, GEBCO, NOAA NGDC, and other contributors',
+        name='Bathymétrie ESRI',
         overlay=False
     ).add_to(m)
+    
+    # Couche optionnelle de repères / références
     folium.TileLayer(
-        tiles='https://arcgisonline.com{z}/{y}/{x}',
-        attr='Esri Labels',
-        name='Repères',
+        tiles='https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}',
+        attr='Esri, Garmin, USGS, NGA',
+        name='Repères ESRI',
         overlay=True
     ).add_to(m)
-    folium.Marker(current_coords, popup="Votre bateau", icon=folium.Icon(color="blue", icon="anchor", prefix="fa")).add_to(m)
+    
+    folium.Marker(
+        current_coords, 
+        popup="Position choisie", 
+        icon=folium.Icon(color="blue", icon="anchor", prefix="fa")
+    ).add_to(m)
+    
     st_folium(m, width="100%", height=550, returned_objects=[])
+
 else:
     st.warning(f"⛈️ **Affichage actuel : Radar Météo Temps Réel** — {zone}. Observez les cellules de pluie s'approcher.")
     m = folium.Map(location=current_coords, zoom_start=9, control_scale=True)
+    
     folium.TileLayer('OpenStreetMap', name='Carte standard').add_to(m)
+    
+    # URL corrigée pour le radar de pluie RainViewer
     folium.TileLayer(
-        tiles='https://rainviewer.com{z}/{x}/{y}/2/1_1.png',
+        tiles='https://tilecache.rainviewer.com/v2/radar/nowcast/256/{z}/{x}/{y}/2/1_1.png',
         attr='RainViewer Real-time Radar',
         name='Radar Pluie',
         overlay=True,
-        opacity=0.6
+        opacity=0.65
     ).add_to(m)
-    folium.Marker(current_coords, popup="Votre bateau", icon=folium.Icon(color="red", icon="cloud", prefix="fa")).add_to(m)
+    
+    folium.Marker(
+        current_coords, 
+        popup="Position choisie", 
+        icon=folium.Icon(color="red", icon="cloud", prefix="fa")
+    ).add_to(m)
+    
     st_folium(m, width="100%", height=550, returned_objects=[])
 
 st.markdown("---")
@@ -113,4 +130,4 @@ col_info1, col_info2 = st.columns(2)
 with col_info1:
     st.markdown("🔹 **Astuce terrain :** Si le radar montre des taches **vertes foncées, jaunes ou rouges**, quittez le plan d'eau immédiatement.")
 with col_info2:
-    st.markdown("🔹 **Réglementation officielle :** Ce calculateur utilise les règles simplifiées du MFFP. Consultez toujours le site officiel avant de conserver une prise incertaine.")
+    st.markdown("🔹 **Réglementation officielle :** Ce calculateur utilise les règles simplifiées du MFFP/M環境. Consultez toujours le site officiel avant de conserver une prise incertaine.")
