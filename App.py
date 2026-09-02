@@ -2,110 +2,123 @@ import streamlit as st
 import folium
 from streamlit_folium import st_folium
 
-st.set_page_config(page_title="Pêche QC - Navigation", page_icon="⚓", layout="wide")
+st.set_page_config(page_title="Guide Pêche Québec Pro", layout="wide", initial_sidebar_state="expanded")
 
+# --- STYLE CSS PERSONNALISÉ ---
 st.markdown("""
-    <style>
-    div.stButton > button {
-        width: 100%;
-        height: 60px;
-        font-size: 20px !important;
-        font-weight: bold;
-    }
-    </style>
+<style>
+    .main { background-color: #0f172a; color: #f1f5f9; }
+    .card { background-color: #1e293b; padding: 20px; border-radius: 10px; border: 1px solid #334155; margin-bottom: 15px; }
+    .ice-card { background-color: #082f49; padding: 20px; border-radius: 10px; border: 1px solid #0369a1; margin-bottom: 15px; }
+    .alert-ice { background-color: #451a03; padding: 15px; border-radius: 8px; border: 1px solid #b45309; color: #fde68a; font-size: 13px; }
+</style>
 """, unsafe_allow_html=True)
 
-st.title("⚓ Application Pêche & Marées Québec")
-
-st.sidebar.header("📍 Position & Prises")
-
-zone = st.sidebar.selectbox(
-    "Choix du plan d'eau :",
-    ["Secteur Saguenay (Fjord/Lac)", "Fleuve Québec / Lévis", "Estuaire Rimouski", "Lac Saint-Pierre", "Fleuve Montréal"]
-)
-
-coords_dict = {
-    "Secteur Saguenay (Fjord/Lac)": [48.4167, -70.8333],
-    "Fleuve Québec / Lévis": [46.8139, -71.2082],
-    "Estuaire Rimouski": [48.4484, -68.5239],
-    "Lac Saint-Pierre": [46.1950, -72.9242],
-    "Fleuve Montréal": [45.5017, -73.5673]
+# --- BASE DE DONNÉES LOCALE VÉRIFIÉE (QUÉBEC) ---
+SPOTS_QUEBEC = {
+    "Saguenay - Fjord (Village de pêche Baie des Ha! Ha!)": {
+        "lat": 48.3332, "lon": -70.8833, "zoom": 12,
+        "reglement": "Fjord du Saguenay (Pêche blanche) - Aucun permis de pêche générale requis sur les glaces du Fjord, mais quotas stricts par espèce.",
+        "especes": ["Sébaste", "Morue de l'Atlantique", "Turbot (Flétan du Groenland)", "Éperlan arc-en-ciel"],
+        "conseil": "Pêche en verticale à l'intérieur des cabanes chauffées avec des dandinettes lestées et des vers ou lanières de poisson."
+    },
+    "Lac Saint-Jean (Pointe-Taillon / Saint-Gédéon)": {
+        "lat": 48.5500, "lon": -71.7333, "zoom": 11,
+        "reglement": "Zone 27 - Permis de pêche sportive d'eau douce obligatoire, respect des dates limites d'utilisation des cabanes.",
+        "especes": ["Doré jaune", "Perchaude", "Lotte"],
+        "conseil": "Utiliser des brimbales (lignes dormantes) calées avec des menés vivants sur les rebords de hauts-fonds."
+    }
 }
-current_coords = coords_dict[zone]
 
-st.sidebar.markdown("---")
-st.sidebar.subheader("⚖️ Calculateur de Prise i-Pêche")
+# --- NAVIGATION PRINCIPALE (ONGLETS) ---
+onglet_principal, onglet_tutos, onglet_glace = st.tabs([
+    "🗺️ Cartographie & Été", 
+    "🎥 Montages & Techniques", 
+    "❄️ Pêche Blanche (Glace)"
+])
 
-espece = st.sidebar.selectbox("Espèce capturée :", ["Doré Jaune", "Truite Mouchetée (Omble)"])
-taille = st.sidebar.number_input("Longueur du poisson (en cm) :", min_value=0.0, max_value=120.0, value=35.0, step=0.5)
+with onglet_principal:
+    with st.sidebar:
+        st.markdown("## 🎣 Paramètres Pêche QC")
+        plan_eau = st.selectbox("Choisir un plan d'eau", list(SPOTS_QUEBEC.keys()))
+        spot_info = SPOTS_QUEBEC[plan_eau]
+        LAT, LON, ZOOM = spot_info["lat"], spot_info["lon"], spot_info["zoom"]
+        
+        st.markdown("---")
+        st.markdown("### 🛠️ Outils Pro")
+        mode_carte = st.radio("Fond de carte", ["Satellite HD", "Topographie"])
 
-if espece == "Doré Jaune":
-    if 37.0 <= taille <= 53.0:
-        st.sidebar.success(f"✅ **PRISE LÉGALE ({taille} cm)**")
-    elif taille < 37.0:
-        st.sidebar.error(f"🚨 **TROP PETIT ({taille} cm)** (Min: 37cm)")
-    else:
-        st.sidebar.error(f"🚨 **GRAND GÉNITEUR ({taille} cm)** (Max: 53cm)")
-else:
-    if taille >= 10.0:
-        st.sidebar.success(f"✅ **PRISE LÉGALE ({taille} cm)**")
-    else:
-        st.sidebar.error(f"🚨 **TROP PETIT ({taille} cm)**")
+    col_carte, col_panneau = st.columns([1.5, 1])
 
-st.subheader("📺 Mode d'affichage de l'Écran Principal")
-col_btn1, col_btn2 = st.columns(2)
+    with col_carte:
+        st.markdown(f"### 🗺️ Zone : {plan_eau}")
+        m = folium.Map(location=[LAT, LON], zoom_start=ZOOM, control_scale=True, tiles=None)
+        
+        if mode_carte == "Satellite HD":
+            folium.TileLayer(tiles='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attr='Esri Satellite').add_to(m)
+        else:
+            folium.TileLayer(tiles='https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', attr='OpenTopoMap').add_to(m)
 
-if "view_mode" not in st.session_state:
-    st.session_state.view_mode = "bathymetrie"
+        folium.Marker(location=[LAT, LON], tooltip="Structure Clé", icon=folium.Icon(color="blue", icon="anchor", prefix="fa")).add_to(m)
+        st_folium(m, width="100%", height=500, returned_objects=[], key="map_v_ete")
 
-with col_btn1:
-    if st.button("🌊 CARTE BATHYMÉTRIQUE"):
-        st.session_state.view_mode = "bathymetrie"
-with col_btn2:
-    if st.button("⛈️ RADAR MÉTÉO"):
-        st.session_state.view_mode = "meteo"
+    with col_panneau:
+        st.markdown("### 📋 Stratégie & Réglementation")
+        st.markdown(f"""
+        <div class="card">
+            <h4 style="color: #38bdf8; margin-top:0;">Espèces cibles</h4>
+            <p><b>{', '.join(spot_info['especes'])}</b></p>
+            <h4 style="color: #fbbf24;">Réglementation Québec</h4>
+            <p style="font-size: 13px; color: #cbd5e1;">{spot_info['reglement']}</p>
+            <h4 style="color: #4ade80;">Conseil tactique</h4>
+            <p style="font-size: 13px; color: #cbd5e1;">{spot_info['conseil']}</p>
+        </div>
+        """, unsafe_allow_html=True)
+        st.markdown(f'<a href="https://webapp.navionics.com/?lang=en#boating@13@{LAT},{LON}" target="_blank" style="background-color: #004b87; color: white; padding: 10px 15px; border-radius: 6px; text-decoration: none; font-weight: bold; display:inline-block; text-align:center; width:100%;">🗺️ Ouvrir la zone sur Navionics Web</a>', unsafe_allow_html=True)
 
-st.markdown("---")
+with onglet_tutos:
+    st.markdown("## 📚 Académie Pêche 101 : Montages & Techniques")
+    col_tuto1, col_tuto2, col_tuto3 = st.columns(3)
+    
+    with col_tuto1:
+        st.markdown("""<div class="card"><h3 style="color: #38bdf8;">🪢 Nœud Albright / FG</h3><p style="font-size: 13px;">Raccord tresse-fluorocarbone ultra résistant.</p></div>""", unsafe_allow_html=True)
+    with col_tuto2:
+        st.markdown("""<div class="card"><h3 style="color: #fbbf24;">🎯 Jig & Leurre Souple</h3><p style="font-size: 13px;">Technique de grattage de fond pour le doré et le bar rayé.</p></div>""", unsafe_allow_html=True)
+    with col_tuto3:
+        st.markdown("""<div class="card"><h3 style="color: #4ade80;">🎣 Traîne lente</h3><p style="font-size: 13px;">Réglage des planches planantes pour salmonidés.</p></div>""", unsafe_allow_html=True)
 
-# --- FONCTIONS EN CACHE POUR CHARGEMENT ÉCLAIR ---
-@st.cache_resource
-def get_bathymetry_map(lat, lon):
-    m = folium.Map(location=[lat, lon], zoom_start=11, control_scale=False, tiles=None)
-    folium.TileLayer(
-        tiles='https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}',
-        attr='Esri',
-        name='Bathymétrie',
-        overlay=False
-    ).add_to(m)
-    folium.Marker([lat, lon], popup="Position", icon=folium.Icon(color="blue", icon="anchor", prefix="fa")).add_to(m)
-    return m
+with onglet_glace:
+    st.markdown("## ❄️ Pêche Blanche & Sécurité Hivernale")
+    st.markdown("Données spécifiques au Fjord du Saguenay et plans d'eau intérieurs : épaisseur de glace, équipements et espèces cibles.")
+    
+    col_g1, col_g2 = st.columns(2)
+    
+    with col_g1:
+        st.markdown("""
+        <div class="ice-card">
+            <h3 style="color: #38bdf8;">📏 Guide d'Épaisseur de Glace (Sécurité)</h3>
+            <p style="font-size: 13px; color: #e2e8f0;">Vérifiez toujours l'épaisseur avant de vous aventurer sur la glace :</p>
+            <ul style="font-size: 13px; color: #cbd5e1;">
+                <li><b>10 cm (4 pouces) :</b> Sécuritaire pour la marche à pied (pêcheur solo).</li>
+                <li><b>20 cm (8 pouces) :</b> Motoneige ou VTT.</li>
+                <li><b>30 cm (12 pouces) :</b> Automobile ou petit camion léger.</li>
+                <li><b>38 cm+ :</b> Véhicule lourd / cabane de pêche complète.</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div class="alert-ice">
+            <b>⚠️ Particularité du Fjord :</b> Attention aux mouvements de marées et aux zones de "pied de glace" près des rives qui fragilisent la couverture glacée de manière imprévisible.
+        </div>
+        """, unsafe_allow_html=True)
 
-@st.cache_resource
-def get_meteo_map(lat, lon):
-    m = folium.Map(location=[lat, lon], zoom_start=9, control_scale=False)
-    folium.TileLayer(
-        tiles='https://tilecache.rainviewer.com/v2/radar/nowcast/256/{z}/{x}/{y}/2/1_1.png',
-        attr='RainViewer',
-        name='Radar Pluie',
-        overlay=True,
-        opacity=0.65
-    ).add_to(m)
-    folium.Marker([lat, lon], popup="Position", icon=folium.Icon(color="red", icon="cloud", prefix="fa")).add_to(m)
-    return m
-
-# Affiche la carte pré-chargée en mémoire
-if st.session_state.view_mode == "bathymetrie":
-    st.info(f"🟢 **Bathymétrie** — {zone}")
-    map_obj = get_bathymetry_map(current_coords[0], current_coords[1])
-else:
-    st.warning(f"⛈️ **Radar Météo** — {zone}")
-    map_obj = get_meteo_map(current_coords[0], current_coords[1])
-
-st_folium(map_obj, width="100%", height=500, returned_objects=[], key=f"map_{st.session_state.view_mode}_{zone}")
-
-st.markdown("---")
-col_info1, col_info2 = st.columns(2)
-with col_info1:
-    st.markdown("🔹 **Astuce terrain :** Taches vertes foncées, jaunes ou rouges = quittez l'eau.")
-with col_info2:
-    st.markdown("🔹 **Réglementation :** Règles simplifiées du MFFP.")
+    with col_g2:
+        st.markdown("""
+        <div class="ice-card">
+            <h3 style="color: #38bdf8;">🪝 Montages & Espèces du Fjord en Hiver</h3>
+            <p style="font-size: 13px; color: #e2e8f0;"><b>1. Pêche au Sébaste et à la Morue :</b> Utilisation de cannes à dandinette courtes et rigides avec des cuillères plombées ou des jigs phosphorescents dans les grands fonds.</p>
+            <p style="font-size: 13px; color: #e2e8f0;"><b>2. Pêche à l'éperlan :</b> Lignes ultra-fines à dandinette légère munies de petits vers de mer (Néréis) dans les villages de cabanes.</p>
+            <p style="font-size: 13px; color: #e2e8f0;"><b>3. Équipement indispensable :</b> Tarière, cuillère à glace (skimmer), sondeur portable pour repérer les bancs de poissons pélagiques, et crampons de sécurité.</p>
+        </div>
+        """, unsafe_allow_html=True)
