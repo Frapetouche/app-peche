@@ -1,4 +1,4 @@
-    import streamlit as st
+import streamlit as st
 import pandas as pd
 import numpy as np
 
@@ -75,7 +75,7 @@ if selection_mode == "Explorateur de Lacs":
     st.markdown(f"**Espèces Cibles :** {lac_info['Especes_Cibles']}")
     st.markdown(f"**Secteurs et Structures Clés :** {lac_info['Secteurs_Cles']}")
     
-    # Grille de lignes de courbes de fond (Isobathes tabulaires et graphiques natifs)
+    # Grille de lignes de courbes de fond (Isobathes)
     st.subheader("📈 Lignes de Courbes de Fond & Isobathes")
     st.markdown("Échelonnement des profondeurs sous-marines pour identifier les paliers de pêche :")
     
