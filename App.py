@@ -62,18 +62,15 @@ st.info(f"**Description du profil :** {info_lac['description']} (Profondeur max 
 m = folium.Map(
     location=[info_lac["lat"], info_lac["lon"]], 
     zoom_start=info_lac["zoom"], 
-    tiles="CartoDB positron"  # Fond de carte clair et épuré pour bien voir les isobathes
+    tiles="CartoDB positron"
 )
 
 # Ajout dynamique des cercles concentriques représentant les lignes de niveaux isobathes
-# Du plus clair (bord) au plus foncé (fosse centrale)
 colors = ["#c6dbef", "#9ecae1", "#4292c6", "#08306b"]
 
 for idx, iso in enumerate(info_lac["isobathes"]):
-    # Calcul du rayon proportionnel à la profondeur
-     rayon_metres = max(500, int((info_lac['max_depth'] - iso['prof'] + 20) * 45))
+    rayon_metres = max(500, int((info_lac['max_depth'] - iso['prof'] + 20) * 45))
     
-    # Position des anneaux de niveau décalés vers la cuvette
     lat_pos = info_lac["lat"] + iso["lat_off"]
     lon_pos = info_lac["lon"] + iso["lon_off"]
     
@@ -105,6 +102,6 @@ st_folium(m, width=1100, height=600)
 
 # Tableau technique des isobathes
 st.subheader("📊 Tableau d'Échelonnement des Paliers de Pêche")
-df_iso = pd.DataFrame(info_lac["isobathes"])
-df_iso.columns = ["Profondeur (m)", "Caractéristique du Fond", "Décalage Nord", "Décalage Est"]
-st.dataframe(df_iso[["Profondeur (m)", "Caractéristique du Fond"]], use_container_width=True)
+df_iso = pd.DataFrame(info_lac["isobathes"])[["prof", "desc"]]
+df_iso.columns = ["Profondeur (m)", "Caractéristique du Fond"]
+st.dataframe(df_iso, use_container_width=True)
