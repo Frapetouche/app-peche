@@ -1,124 +1,102 @@
 import streamlit as st
-import folium
-from streamlit_folium import st_folium
+import pandas as pd
+import numpy as np
 
-st.set_page_config(page_title="Guide Pêche Québec Pro", layout="wide", initial_sidebar_state="expanded")
+# Configuration de la page
+st.set_page_config(
+    page_title="Bathymétrie des Lacs du Québec",
+    page_icon="🗺️",
+    layout="wide"
+)
 
-# --- STYLE CSS PERSONNALISÉ ---
-st.markdown("""
-<style>
-    .main { background-color: #0f172a; color: #f1f5f9; }
-    .card { background-color: #1e293b; padding: 20px; border-radius: 10px; border: 1px solid #334155; margin-bottom: 15px; }
-    .ice-card { background-color: #082f49; padding: 20px; border-radius: 10px; border: 1px solid #0369a1; margin-bottom: 15px; }
-    .alert-ice { background-color: #451a03; padding: 15px; border-radius: 8px; border: 1px solid #b45309; color: #fde68a; font-size: 13px; }
-</style>
-""", unsafe_allow_html=True)
+# Données intégrées des lacs (incluant le Lac-Saint-Jean et archives 1961)
+@st.cache_data
+def load_lakes_data():
+    data = [
+        {
+            "Nom": "Lac-Saint-Jean",
+            "Superficie (km²)": 1053,
+            "Profondeur Max (m)": 63,
+            "Profondeur Moyenne (m)": 11,
+            "Contexte Historique": "Levés et cartes de référence (dont archives 1961 et cartographie hydrographique)",
+            "Espèces Cibles": "Ouananiche, Doré jaune, Grand Corégone, Brochet",
+            "Secteurs Clés": "Bassins profonds centraux (jusqu'à 60m+), hauts-fonds sableux, embouchures de rivières",
+            "lat": 48.55,
+            "lon": -72.25
+        },
+        {
+            "Nom": "Lac des Commissaires (Lac St-Jean Ouest)",
+            "Superficie (km²)": 45,
+            "Profondeur Max (m)": 155,
+            "Profondeur Moyenne (m)": 28,
+            "Contexte Historique": "Cartes bathymétriques historiques (Fonds BAnQ / Archives 1961)",
+            "Espèces Cibles": "Touladi, Ouananiche, Brochet",
+            "Secteurs Clés": "Fosses profondes et tombants rocheux",
+            "lat": 47.78,
+            "lon": -72.23
+        },
+        {
+            "Nom": "Lac Kénogami",
+            "Superficie (km²)": 52,
+            "Profondeur Max (m)": 115,
+            "Profondeur Moyenne (m)": 20,
+            "Contexte Historique": "Réseau hydrographique régional Saguenay–Lac-Saint-Jean",
+            "Espèces Cibles": "Ouananiche, Doré, Perchaude",
+            "Secteurs Clés": "Salines, chenaux étroits et fosses structurées",
+            "lat": 48.33,
+            "lon": -71.45
+        }
+    ]
+    return pd.DataFrame(data)
 
-# --- BASE DE DONNÉES LOCALE VÉRIFIÉE (QUÉBEC) ---
-SPOTS_QUEBEC = {
-    "Saguenay - Fjord (Village de pêche Baie des Ha! Ha!)": {
-        "lat": 48.3332, "lon": -70.8833, "zoom": 12,
-        "reglement": "Fjord du Saguenay (Pêche blanche) - Aucun permis de pêche générale requis sur les glaces du Fjord, mais quotas stricts par espèce.",
-        "especes": ["Sébaste", "Morue de l'Atlantique", "Turbot (Flétan du Groenland)", "Éperlan arc-en-ciel"],
-        "conseil": "Pêche en verticale à l'intérieur des cabanes chauffées avec des dandinettes lestées et des vers ou lanières de poisson."
-    },
-    "Lac Saint-Jean (Pointe-Taillon / Saint-Gédéon)": {
-        "lat": 48.5500, "lon": -71.7333, "zoom": 11,
-        "reglement": "Zone 27 - Permis de pêche sportive d'eau douce obligatoire, respect des dates limites d'utilisation des cabanes.",
-        "especes": ["Doré jaune", "Perchaude", "Lotte"],
-        "conseil": "Utiliser des brimbales (lignes dormantes) calées avec des menés vivants sur les rebords de hauts-fonds."
-    }
-}
+df_lacs = load_lakes_data()
 
-# --- NAVIGATION PRINCIPALE (ONGLETS) ---
-onglet_principal, onglet_tutos, onglet_glace = st.tabs([
-    "🗺️ Cartographie & Été", 
-    "🎥 Montages & Techniques", 
-    "❄️ Pêche Blanche (Glace)"
-])
+# En-titre de l'application
+st.title("🌊 Bathymétrie des Lacs du Québec")
+st.markdown("Explorez les données bathymétriques, les structures sous-marines et les repères historiques (cartes de 1961) pour les pêcheurs amateurs.")
 
-with onglet_principal:
-    with st.sidebar:
-        st.markdown("## 🎣 Paramètres Pêche QC")
-        plan_eau = st.selectbox("Choisir un plan d'eau", list(SPOTS_QUEBEC.keys()))
-        spot_info = SPOTS_QUEBEC[plan_eau]
-        LAT, LON, ZOOM = spot_info["lat"], spot_info["lon"], spot_info["zoom"]
-        
-        st.markdown("---")
-        st.markdown("### 🛠️ Outils Pro")
-        mode_carte = st.radio("Fond de carte", ["Satellite HD", "Topographie"])
+# Barre latérale de navigation
+st.sidebar.header("Navigation")
+selection_mode = st.sidebar.radio("Mode d'affichage", ["Explorateur de Lacs", "Carte & Coordonnées", "À propos / Open Data"])
 
-    col_carte, col_panneau = st.columns([1.5, 1])
-
-    with col_carte:
-        st.markdown(f"### 🗺️ Zone : {plan_eau}")
-        m = folium.Map(location=[LAT, LON], zoom_start=ZOOM, control_scale=True, tiles=None)
-        
-        if mode_carte == "Satellite HD":
-            folium.TileLayer(tiles='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attr='Esri Satellite').add_to(m)
-        else:
-            folium.TileLayer(tiles='https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', attr='OpenTopoMap').add_to(m)
-
-        folium.Marker(location=[LAT, LON], tooltip="Structure Clé", icon=folium.Icon(color="blue", icon="anchor", prefix="fa")).add_to(m)
-        st_folium(m, width="100%", height=500, returned_objects=[], key="map_v_ete")
-
-    with col_panneau:
-        st.markdown("### 📋 Stratégie & Réglementation")
-        st.markdown(f"""
-        <div class="card">
-            <h4 style="color: #38bdf8; margin-top:0;">Espèces cibles</h4>
-            <p><b>{', '.join(spot_info['especes'])}</b></p>
-            <h4 style="color: #fbbf24;">Réglementation Québec</h4>
-            <p style="font-size: 13px; color: #cbd5e1;">{spot_info['reglement']}</p>
-            <h4 style="color: #4ade80;">Conseil tactique</h4>
-            <p style="font-size: 13px; color: #cbd5e1;">{spot_info['conseil']}</p>
-        </div>
-        """, unsafe_allow_html=True)
-        st.markdown(f'<a href="https://webapp.navionics.com/?lang=en#boating@13@{LAT},{LON}" target="_blank" style="background-color: #004b87; color: white; padding: 10px 15px; border-radius: 6px; text-decoration: none; font-weight: bold; display:inline-block; text-align:center; width:100%;">🗺️ Ouvrir la zone sur Navionics Web</a>', unsafe_allow_html=True)
-
-with onglet_tutos:
-    st.markdown("## 📚 Académie Pêche 101 : Montages & Techniques")
-    col_tuto1, col_tuto2, col_tuto3 = st.columns(3)
+if selection_mode == "Explorateur de Lacs":
+    st.subheader("Sélectionnez un plan d'eau")
+    lac_selection = st.selectbox("Choisissez un lac :", df_lacs["Nom"].tolist())
     
-    with col_tuto1:
-        st.markdown("""<div class="card"><h3 style="color: #38bdf8;">🪢 Nœud Albright / FG</h3><p style="font-size: 13px;">Raccord tresse-fluorocarbone ultra résistant.</p></div>""", unsafe_allow_html=True)
-    with col_tuto2:
-        st.markdown("""<div class="card"><h3 style="color: #fbbf24;">🎯 Jig & Leurre Souple</h3><p style="font-size: 13px;">Technique de grattage de fond pour le doré et le bar rayé.</p></div>""", unsafe_allow_html=True)
-    with col_tuto3:
-        st.markdown("""<div class="card"><h3 style="color: #4ade80;">🎣 Traîne lente</h3><p style="font-size: 13px;">Réglage des planches planantes pour salmonidés.</p></div>""", unsafe_allow_html=True)
-
-with onglet_glace:
-    st.markdown("## ❄️ Pêche Blanche & Sécurité Hivernale")
-    st.markdown("Données spécifiques au Fjord du Saguenay et plans d'eau intérieurs : épaisseur de glace, équipements et espèces cibles.")
+    lac_info = df_lacs[df_lacs["Nom"] == lac_selection].iloc[0]
     
-    col_g1, col_g2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Superficie", f"{lac_info['Superficie (km²)]']} km²")
+    col2.metric("Profondeur Max", f"{lac_info['Profondeur Max (m)]']} m")
+    col3.metric("Profondeur Moyenne", f"{lac_info['Profondeur Moyenne (m)]']} m")
     
-    with col_g1:
-        st.markdown("""
-        <div class="ice-card">
-            <h3 style="color: #38bdf8;">📏 Guide d'Épaisseur de Glace (Sécurité)</h3>
-            <p style="font-size: 13px; color: #e2e8f0;">Vérifiez toujours l'épaisseur avant de vous aventurer sur la glace :</p>
-            <ul style="font-size: 13px; color: #cbd5e1;">
-                <li><b>10 cm (4 pouces) :</b> Sécuritaire pour la marche à pied (pêcheur solo).</li>
-                <li><b>20 cm (8 pouces) :</b> Motoneige ou VTT.</li>
-                <li><b>30 cm (12 pouces) :</b> Automobile ou petit camion léger.</li>
-                <li><b>38 cm+ :</b> Véhicule lourd / cabane de pêche complète.</li>
-            </ul>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("""
-        <div class="alert-ice">
-            <b>⚠️ Particularité du Fjord :</b> Attention aux mouvements de marées et aux zones de "pied de glace" près des rives qui fragilisent la couverture glacée de manière imprévisible.
-        </div>
-        """, unsafe_allow_html=True)
+    st.markdown("---")
+    st.markdown(f"**Contexte et Archives :** {lac_info['Contexte Historique']}")
+    st.markdown(f"**Espèces Cibles :** {lac_info['Espèces Cibles']}")
+    st.markdown(f"**Secteurs et Structures Clés :** {lac_info['Secteurs Clés']}")
+    
+    # Simulation d'un profil bathymétrique basé sur les profondeurs de référence
+    st.subheader("Profil Bathymétrique Théorique / Repères de Profondeur")
+    distances = np.linspace(0, 10, 50)
+    profondeurs = lac_info['Profondeur Max (m)'] * (1 - np.exp(-distances/3)) + np.random.normal(0, 0.5, 50)
+    profondeurs = np.clip(profondeurs, 0, lac_info['Profondeur Max (m)'])
+    
+    chart_data = pd.DataFrame({
+        "Distance depuis la rive (km)": distances,
+        "Profondeur (m)": profondeurs
+    })
+    st.line_chart(chart_data.set_index("Distance depuis la rive (km)"))
 
-    with col_g2:
-        st.markdown("""
-        <div class="ice-card">
-            <h3 style="color: #38bdf8;">🪝 Montages & Espèces du Fjord en Hiver</h3>
-            <p style="font-size: 13px; color: #e2e8f0;"><b>1. Pêche au Sébaste et à la Morue :</b> Utilisation de cannes à dandinette courtes et rigides avec des cuillères plombées ou des jigs phosphorescents dans les grands fonds.</p>
-            <p style="font-size: 13px; color: #e2e8f0;"><b>2. Pêche à l'éperlan :</b> Lignes ultra-fines à dandinette légère munies de petits vers de mer (Néréis) dans les villages de cabanes.</p>
-            <p style="font-size: 13px; color: #e2e8f0;"><b>3. Équipement indispensable :</b> Tarière, cuillère à glace (skimmer), sondeur portable pour repérer les bancs de poissons pélagiques, et crampons de sécurité.</p>
-        </div>
-        """, unsafe_allow_html=True)
+elif selection_mode == "Carte & Coordonnées":
+    st.subheader("Cartographie et Localisation des Plans d'Eau")
+    st.map(df_lacs, latitude='lat', longitude='lon', size=50, color='#2c4c3b')
+    st.dataframe(df_lacs[["Nom", "Superficie (km²)", "Profondeur Max (m)", "Profondeur Moyenne (m)"]])
+
+else:
+    st.subheader("À propos de l'initiative Open Data")
+    st.write("""
+    Cette application est conçue pour offrir une alternative libre, gratuite et solidaire aux cartes commerciales payantes 
+    (Garmin, Navionics) pour les pêcheurs amateurs. En s'appuyant sur les levés historiques (notamment les campagnes des années 1960) 
+    et les répertoires publics (BAnQ, Données Québec), l'objectif est de démocratiser l'accès aux connaissances hydrographiques.
+    """)
+    
