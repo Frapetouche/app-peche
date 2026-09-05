@@ -1,7 +1,6 @@
-import streamlit as st
+    import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.graph_objects as go
 
 # Configuration de la page
 st.set_page_config(
@@ -10,7 +9,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Données intégrées des lacs avec des repères bathymétriques précis
+# Données des lacs avec repères bathymétriques
 @st.cache_data
 def load_lakes_data():
     data = [
@@ -76,49 +75,32 @@ if selection_mode == "Explorateur de Lacs":
     st.markdown(f"**Espèces Cibles :** {lac_info['Especes_Cibles']}")
     st.markdown(f"**Secteurs et Structures Clés :** {lac_info['Secteurs_Cles']}")
     
-    st.subheader("Carte des Lignes de Courbes de Fond (Bathymétrie)")
-    st.markdown("Visualisation des isobathes (lignes de profondeur) simulant la cuvette sous-marine du lac sélectionné.")
+    # Grille de lignes de courbes de fond (Isobathes tabulaires et graphiques natifs)
+    st.subheader("📈 Lignes de Courbes de Fond & Isobathes")
+    st.markdown("Échelonnement des profondeurs sous-marines pour identifier les paliers de pêche :")
     
-    # Génération d'une grille bathymétrique réaliste basée sur la profondeur max du lac
     max_d = lac_info['Profondeur_Max']
-    x = np.linspace(-5, 5, 50)
-    y = np.linspace(-5, 5, 50)
-    X, Y = np.meshgrid(x, y)
+    paliers = [round(max_d * p, 1) for p in [0.1, 0.25, 0.5, 0.75, 0.9, 1.0]]
     
-    # Modélisation d'une cuvette avec des hauts-fonds et fosses
-    Z = max_d * (1 - 0.7 * np.exp(-(X**2 + Y**2)/8) - 0.3 * np.cos(X) * np.sin(Y))
-    Z = np.clip(Z, 0, max_d)
+    df_isobathes = pd.DataFrame({
+        "Niveau d'Isobathe": ["Zone côtière / Haut-fond", "Plateau intermédiaire", "Pente / Tombant", "Fosse secondaire", "Bassin profond maximal", "Fond abattu / Fosse clé"],
+        "Profondeur (mètres)": paliers,
+        "Stratégie de Pêche Recommandée": [
+            "Lancer aux abords des herbiers et pointes rocheuses",
+            "Recherche de structures et cassures (Doré / Ouananiche)",
+            "Pêche à la traîne le long du talus",
+            "Migration des grands salmonidés",
+            "Zone pélagique profonde",
+            "Fonds de cuvette (refuge thermique)"
+        ]
+    })
     
-    # Création du graphique de courbes de niveau (Contour plot)
-    fig = go.Figure(data = [
-        go.Contour(
-            z=Z,
-            x=x,
-            y=y,
-            colorscale='Blues_r',  # Du plus foncé (profond) au plus clair (haut-fond)
-            colorbar=dict(title="Profondeur (m)"),
-            contours=dict(
-                showlabels=True, # Affiche les chiffres de profondeur sur les lignes
-                labelfont=dict(size=12, color='white')
-            )
-        )
-    ])
+    st.dataframe(df_isobathes, use_container_width=True)
     
-    fig.update_layout(
-        title=f"Modèle Bathymétrique - {lac_info['Nom']}",
-        xaxis_title="Coordonnée Est-Ouest (secteurs)",
-        yaxis_title="Coordonnée Nord-Sud (secteurs)",
-        height=500,
-        margin=dict(l=20, r=20, t=40, b=20)
-    )
-    
-    st.plotly_chart(fig, use_container_width=True)
-    
-    # Profil en coupe
+    # Graphique de profil bathymétrique natif Streamlit
     st.subheader("Profil Bathymétrique en Coupe Transversale")
     distances = np.linspace(0, 10, 50)
-    profondeurs = max_d * (1 - np.exp(-distances/3)) + np.random.normal(0, 0.5, 50)
-    profondeurs = np.clip(profondeurs, 0, max_d)
+    profondeurs = max_d * (1 - np.exp(-distances/3))
     
     chart_data = pd.DataFrame({
         "Distance depuis la rive (km)": distances,
