@@ -9,40 +9,40 @@ st.set_page_config(
     layout="wide"
 )
 
-# Données intégrées des lacs (incluant le Lac-Saint-Jean et archives 1961)
+# Données intégrées des lacs avec des clés sans espaces ni caractères spéciaux
 @st.cache_data
 def load_lakes_data():
     data = [
         {
             "Nom": "Lac-Saint-Jean",
-            "Superficie (km²)": 1053,
-            "Profondeur Max (m)": 63,
-            "Profondeur Moyenne (m)": 11,
-            "Contexte Historique": "Levés et cartes de référence (dont archives 1961 et cartographie hydrographique)",
-            "Espèces Cibles": "Ouananiche, Doré jaune, Grand Corégone, Brochet",
-            "Secteurs Clés": "Bassins profonds centraux (jusqu'à 60m+), hauts-fonds sableux, embouchures de rivières",
+            "Superficie": 1053,
+            "Profondeur_Max": 63,
+            "Profondeur_Moyenne": 11,
+            "Contexte_Historique": "Levés et cartes de référence (dont archives 1961 et cartographie hydrographique)",
+            "Especes_Cibles": "Ouananiche, Doré jaune, Grand Corégone, Brochet",
+            "Secteurs_Cles": "Bassins profonds centraux (jusqu'à 60m+), hauts-fonds sableux, embouchures de rivières",
             "lat": 48.55,
             "lon": -72.25
         },
         {
             "Nom": "Lac des Commissaires (Lac St-Jean Ouest)",
-            "Superficie (km²)": 45,
-            "Profondeur Max (m)": 155,
-            "Profondeur Moyenne (m)": 28,
-            "Contexte Historique": "Cartes bathymétriques historiques (Fonds BAnQ / Archives 1961)",
-            "Espèces Cibles": "Touladi, Ouananiche, Brochet",
-            "Secteurs Clés": "Fosses profondes et tombants rocheux",
+            "Superficie": 45,
+            "Profondeur_Max": 155,
+            "Profondeur_Moyenne": 28,
+            "Contexte_Historique": "Cartes bathymétriques historiques (Fonds BAnQ / Archives 1961)",
+            "Especes_Cibles": "Touladi, Ouananiche, Brochet",
+            "Secteurs_Cles": "Fosses profondes et tombants rocheux",
             "lat": 47.78,
             "lon": -72.23
         },
         {
             "Nom": "Lac Kénogami",
-            "Superficie (km²)": 52,
-            "Profondeur Max (m)": 115,
-            "Profondeur Moyenne (m)": 20,
-            "Contexte Historique": "Réseau hydrographique régional Saguenay–Lac-Saint-Jean",
-            "Espèces Cibles": "Ouananiche, Doré, Perchaude",
-            "Secteurs Clés": "Salines, chenaux étroits et fosses structurées",
+            "Superficie": 52,
+            "Profondeur_Max": 115,
+            "Profondeur_Moyenne": 20,
+            "Contexte_Historique": "Réseau hydrographique régional Saguenay–Lac-Saint-Jean",
+            "Especes_Cibles": "Ouananiche, Doré, Perchaude",
+            "Secteurs_Cles": "Salines, chenaux étroits et fosses structurées",
             "lat": 48.33,
             "lon": -71.45
         }
@@ -66,20 +66,20 @@ if selection_mode == "Explorateur de Lacs":
     lac_info = df_lacs[df_lacs["Nom"] == lac_selection].iloc[0]
     
     col1, col2, col3 = st.columns(3)
-    col1.metric("Superficie", f"{lac_info['Superficie (km²)]']} km²")
-    col2.metric("Profondeur Max", f"{lac_info['Profondeur Max (m)]']} m")
-    col3.metric("Profondeur Moyenne", f"{lac_info['Profondeur Moyenne (m)]']} m")
+    col1.metric("Superficie", f"{lac_info['Superficie']} km²")
+    col2.metric("Profondeur Max", f"{lac_info['Profondeur_Max']} m")
+    col3.metric("Profondeur Moyenne", f"{lac_info['Profondeur_Moyenne']} m")
     
     st.markdown("---")
-    st.markdown(f"**Contexte et Archives :** {lac_info['Contexte Historique']}")
-    st.markdown(f"**Espèces Cibles :** {lac_info['Espèces Cibles']}")
-    st.markdown(f"**Secteurs et Structures Clés :** {lac_info['Secteurs Clés']}")
+    st.markdown(f"**Contexte et Archives :** {lac_info['Contexte_Historique']}")
+    st.markdown(f"**Espèces Cibles :** {lac_info['Especes_Cibles']}")
+    st.markdown(f"**Secteurs et Structures Clés :** {lac_info['Secteurs_Cles']}")
     
     # Simulation d'un profil bathymétrique basé sur les profondeurs de référence
     st.subheader("Profil Bathymétrique Théorique / Repères de Profondeur")
     distances = np.linspace(0, 10, 50)
-    profondeurs = lac_info['Profondeur Max (m)'] * (1 - np.exp(-distances/3)) + np.random.normal(0, 0.5, 50)
-    profondeurs = np.clip(profondeurs, 0, lac_info['Profondeur Max (m)'])
+    profondeurs = lac_info['Profondeur_Max'] * (1 - np.exp(-distances/3)) + np.random.normal(0, 0.5, 50)
+    profondeurs = np.clip(profondeurs, 0, lac_info['Profondeur_Max'])
     
     chart_data = pd.DataFrame({
         "Distance depuis la rive (km)": distances,
@@ -90,7 +90,7 @@ if selection_mode == "Explorateur de Lacs":
 elif selection_mode == "Carte & Coordonnées":
     st.subheader("Cartographie et Localisation des Plans d'Eau")
     st.map(df_lacs, latitude='lat', longitude='lon', size=50, color='#2c4c3b')
-    st.dataframe(df_lacs[["Nom", "Superficie (km²)", "Profondeur Max (m)", "Profondeur Moyenne (m)"]])
+    st.dataframe(df_lacs[["Nom", "Superficie", "Profondeur_Max", "Profondeur_Moyenne"]])
 
 else:
     st.subheader("À propos de l'initiative Open Data")
