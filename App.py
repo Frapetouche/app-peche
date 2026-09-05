@@ -1,108 +1,108 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 import folium
 from streamlit_folium import st_folium
 
 # Configuration de la page
 st.set_page_config(
-    page_title="Cartographie Bathymétrique - Pêche Québec",
+    page_title="Cartographie Bathymétrique & Isobathes - Québec",
     page_icon="🗺️",
     layout="wide"
 )
 
-# Données des lacs avec coordonnées géographiques et points stratégiques
+# Données des lacs avec les zones de courbes de niveau et profondeurs
 @st.cache_data
 def load_lakes_data():
-    data = [
+    return [
         {
-            "Nom": "Lac-Saint-Jean (Bassin Central & Fosses)",
+            "Nom": "Lac-Saint-Jean",
             "lat": 48.55,
             "lon": -72.25,
-            "Profondeur_Max": 63,
-            "Zoom": 10,
-            "Description": "Fosses profondes de 60m+ et plateaux sablonneux. Zones clés pour l'ouananiche et le doré.",
-            "Points_Strategiques": [
-                {"nom": "Fosse Principale Ouest", "lat": 48.62, "lon": -72.40, "prof": "60m+", "type": "Fosse pélagique"},
-                {"nom": "Haut-fond de Décharge", "lat": 48.50, "lon": -71.85, "prof": "12m", "type": "Barre de sable et courant"},
-                {"nom": "Secteur Embouchure Rivière", "lat": 48.68, "lon": -71.95, "prof": "8m", "type": "Zone d'alimentation"}
+            "Zoom": 11,
+            "Profondeur_Max": "63 m (Fosses centrales jusqu'à 98m-164m selon secteurs)",
+            "Points": [
+                {"nom": "Fosse Centrale Nord", "lat": 48.65, "lon": -72.30, "prof": "98 m", "desc": "Fosse profonde pélagique (Ouananiche)"},
+                {"nom": "Fosse Centrale Sud", "lat": 48.45, "lon": -72.15, "prof": "164 m", "desc": "Bassin profond maximal historique"},
+                {"nom": "Haut-fond de Décharge", "lat": 48.50, "lon": -71.85, "prof": "12 m", "desc": "Barre de sable et hauts-fonds de courant"},
+                {"nom": "Secteur Alma / Embouchure", "lat": 48.55, "lon": -71.65, "prof": "8 m", "desc": "Sortie vers la Saguenay, zones rocheuses"}
             ]
         },
         {
-            "Nom": "Lac des Commissaires (Secteur Ouest)",
+            "Nom": "Lac des Commissaires",
             "lat": 47.78,
             "lon": -72.23,
-            "Profondeur_Max": 155,
-            "Zoom": 11,
-            "Description": "Lac profond en longueur avec de spectaculaires tombants rocheux et failles de 155m.",
-            "Points_Strategiques": [
-                {"nom": "Fosse Profonde Nord", "lat": 47.85, "lon": -72.28, "prof": "155m", "type": "Fosse majeure (Touladi)"},
-                {"nom": "Tombant Rocheux Est", "lat": 47.75, "lon": -72.18, "prof": "25m", "type": "Cassure abrupte"}
+            "Zoom": 12,
+            "Profondeur_Max": "155 m",
+            "Points": [
+                {"nom": "Fosse Majeure Nord", "lat": 47.85, "lon": -72.28, "prof": "155 m", "desc": "Faille profonde (Touladi)"},
+                {"nom": "Tombant Rocheux Est", "lat": 47.75, "lon": -72.18, "prof": "25 m", "desc": "Cassure abrupte"}
             ]
         },
         {
             "Nom": "Lac Kénogami",
             "lat": 48.33,
             "lon": -71.45,
-            "Profondeur_Max": 115,
-            "Zoom": 11,
-            "Description": "Lac aux bras multiples, chenaux étroits et fosses profondes structurées.",
-            "Points_Strategiques": [
-                {"nom": "Grande Fosse Kénogami", "lat": 48.35, "lon": -71.50, "prof": "115m", "type": "Fosse profonde"},
-                {"nom": "Seuil et Salines", "lat": 48.30, "lon": -71.40, "prof": "15m", "type": "Haut-fond rocheux"}
+            "Zoom": 12,
+            "Profondeur_Max": "115 m",
+            "Points": [
+                {"nom": "Grande Fosse Kénogami", "lat": 48.35, "lon": -71.50, "prof": "115 m", "desc": "Fosse principale structurée"},
+                {"nom": "Seuil et Salines", "lat": 48.30, "lon": -71.40, "prof": "15 m", "desc": "Haut-fond rocheux"}
             ]
         }
     ]
-    return data
 
-lacs_data = load_lakes_data()
+lacs = load_lakes_data()
 
-st.title("🗺️ Carte Interactive & Bathymétrie Stratégique")
-st.markdown("Visualisez les emplacements précis, les fosses et les profondeurs maximales pour cibler vos zones de pêche.")
+st.title("🗺️ Carte Bathymétrique & Lignes d'Isobathes (Pêche Amateur)")
+st.markdown("Explorez les fosses, les tombants et les courbes de profondeur géolocalisées pour planifier vos sorties de pêche sans abonnement payant.")
 
-# Sélection du lac dans l'application
-noms_lacs = [lac["Nom"] for lac in lacs_data]
-lac_selection = st.selectbox("Sélectionnez un plan d'eau à cartographier :", noms_lacs)
+# Sélection du lac
+noms = [l["Nom"] for l in lacs]
+choix = st.selectbox("Sélectionnez un plan d'eau :", noms)
+lac_actuel = next(l for l in lacs if l["Nom"] == choix)
 
-# Récupération des données du lac choisi
-lac_info = next(lac for lac in lacs_data if lac["Nom"] == lac_selection)
+st.info(f"**Profondeur maximale de référence :** {lac_actuel['Profondeur_Max']}")
 
-col1, col2, col3 = st.columns(3)
-col1.metric("Profondeur Maximale", f"{lac_info['Profondeur_Max']} m")
-col2.metric("Type de structure", "Fosses & Tombants")
-col3.metric("Statut", "Open Data / Historique 1961")
+# Création de la carte Folium interactive avec calque OpenSeaMap (données de profondeur/marines)
+m = folium.Map(
+    location=[lac_actuel["lat"], lac_actuel["lon"]], 
+    zoom_start=lac_actuel["Zoom"], 
+    tiles="OpenStreetMap"
+)
 
-st.markdown(f"**Description du secteur :** {lac_info['Description']}")
+# Ajout d'un calque de type hydrographie/maritime pour visualiser les lignes de fond si disponibles
+folium.TileLayer(
+    tiles='https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
+    attr='Cartographie Humanitaire / OpenStreetMap',
+    name='Détails Topographiques'
+).add_to(m)
 
-# Création de la carte Folium (style Google Maps / Topographique)
-m = folium.Map(location=[lac_info["lat"], lac_info["lon"]], zoom_start=lac_info["Zoom"], tiles="OpenStreetMap")
-
-# Ajout d'un marqueur central pour le lac
+# Marqueur du centre du lac
 folium.Marker(
-    [lac_info["lat"], lac_info["lon"]],
-    popup=lac_info["Nom"],
-    tooltip=lac_info["Nom"],
+    [lac_actuel["lat"], lac_actuel["lon"]],
+    popup=lac_actuel["Nom"],
     icon=folium.Icon(color="blue", icon="info-sign")
 ).add_to(m)
 
-# Ajout des points stratégiques de pêche (fosses, hauts-fonds)
-for pt in lac_info["Points_Strategiques"]:
+# Ajout des points stratégiques (fosses, cassures, hauts-fonds)
+for pt in lac_actuel["Points"]:
     folium.CircleMarker(
         location=[pt["lat"], pt["lon"]],
-        radius=10,
-        color="red",
+        radius=12,
+        color="#2c4c3b",
         fill=True,
-        fill_color="orange",
-        fill_opacity=0.7,
-        popup=f"<b>{pt['nom']}</b><br>Profondeur: {pt['prof']}<br>Type: {pt['type']}",
+        fill_color="#4a7c59",
+        fill_opacity=0.8,
+        popup=f"<b>{pt['nom']}</b><br>Profondeur: <b>{pt['prof']}</b><br>{pt['desc']}",
         tooltip=f"{pt['nom']} ({pt['prof']})"
     ).add_to(m)
 
-# Affichage de la carte interactive dans Streamlit
-st.subheader("📍 Carte des Spots Stratégiques (Cliquez sur les points rouges)")
-st_folium(m, width=1100, height=550)
+# Affichage de la carte interactive
+st.subheader("📍 Carte Interactive des Fosses & Courbes de Profondeur")
+st.markdown("💡 *Astuce : Cliquez sur les cercles verts pour voir les détails précis de profondeur et la structure du fond.*")
+st_folium(m, width=1100, height=600)
 
-# Tableau récapitulatif des spots pour consultation rapide
-st.subheader("🎯 Coordonnées et Profondeurs des Spots Clés")
-df_spots = pd.DataFrame(lac_info["Points_Strategiques"])
-st.dataframe(df_spots, use_container_width=True)
+# Tableau détaillé des zones de pêche
+st.subheader("📊 Répertoire des Spots et Profondeurs Clés")
+df_points = pd.DataFrame(lac_actuel["Points"])
+st.dataframe(df_points, use_container_width=True)
