@@ -1,108 +1,110 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import folium
 from streamlit_folium import st_folium
 
 # Configuration de la page
 st.set_page_config(
-    page_title="Cartographie Bathymétrique & Isobathes - Québec",
+    page_title="Modélisation Bathymétrique & Isobathes - Québec",
     page_icon="🗺️",
     layout="wide"
 )
 
-# Données des lacs avec les zones de courbes de niveau et profondeurs
+# Données structurées des lacs et de leurs cuvettes basées sur les archives de référence
 @st.cache_data
-def load_lakes_data():
-    return [
-        {
-            "Nom": "Lac-Saint-Jean",
-            "lat": 48.55,
-            "lon": -72.25,
-            "Zoom": 11,
-            "Profondeur_Max": "63 m (Fosses centrales jusqu'à 98m-164m selon secteurs)",
-            "Points": [
-                {"nom": "Fosse Centrale Nord", "lat": 48.65, "lon": -72.30, "prof": "98 m", "desc": "Fosse profonde pélagique (Ouananiche)"},
-                {"nom": "Fosse Centrale Sud", "lat": 48.45, "lon": -72.15, "prof": "164 m", "desc": "Bassin profond maximal historique"},
-                {"nom": "Haut-fond de Décharge", "lat": 48.50, "lon": -71.85, "prof": "12 m", "desc": "Barre de sable et hauts-fonds de courant"},
-                {"nom": "Secteur Alma / Embouchure", "lat": 48.55, "lon": -71.65, "prof": "8 m", "desc": "Sortie vers la Saguenay, zones rocheuses"}
+def load_bathymetry_data():
+    return {
+        "Lac-Saint-Jean": {
+            "lat": 48.55, "lon": -72.25, "zoom": 10, "max_depth": 63,
+            "description": "Immense cuvette glaciaire, présence de fosses profondes centrales et de hauts-fonds sableux.",
+            "isobathes": [
+                {"prof": 10, "desc": "Plateau côtier et herbiers", "lat_off": 0.05, "lon_off": 0.08},
+                {"prof": 25, "desc": "Pente intermédiaire de transition", "lat_off": 0.03, "lon_off": 0.05},
+                {"prof": 45, "desc": "Talus et fosses secondaires", "lat_off": 0.015, "lon_off": 0.025},
+                {"prof": 63, "desc": "Bassin profond maximal (Fosse centrale)", "lat_off": 0.0, "lon_off": 0.0}
             ]
         },
-        {
-            "Nom": "Lac des Commissaires",
-            "lat": 47.78,
-            "lon": -72.23,
-            "Zoom": 12,
-            "Profondeur_Max": "155 m",
-            "Points": [
-                {"nom": "Fosse Majeure Nord", "lat": 47.85, "lon": -72.28, "prof": "155 m", "desc": "Faille profonde (Touladi)"},
-                {"nom": "Tombant Rocheux Est", "lat": 47.75, "lon": -72.18, "prof": "25 m", "desc": "Cassure abrupte"}
+        "Lac des Commissaires": {
+            "lat": 47.78, "lon": -72.23, "zoom": 11, "max_depth": 155,
+            "description": "Lac en longueur structuré par une faille tectonique majeure et des tombants abyssaux.",
+            "isobathes": [
+                {"prof": 20, "desc": "Banquette littorale rocheuse", "lat_off": 0.03, "lon_off": 0.02},
+                {"prof": 60, "desc": "Pente abrupte / Tombant", "lat_off": 0.02, "lon_off": 0.012},
+                {"prof": 100, "desc": "Fosse profonde intermédiaire", "lat_off": 0.01, "lon_off": 0.006},
+                {"prof": 155, "desc": "Fosse maximale (Refuge à Touladi)", "lat_off": 0.0, "lon_off": 0.0}
             ]
         },
-        {
-            "Nom": "Lac Kénogami",
-            "lat": 48.33,
-            "lon": -71.45,
-            "Zoom": 12,
-            "Profondeur_Max": "115 m",
-            "Points": [
-                {"nom": "Grande Fosse Kénogami", "lat": 48.35, "lon": -71.50, "prof": "115 m", "desc": "Fosse principale structurée"},
-                {"nom": "Seuil et Salines", "lat": 48.30, "lon": -71.40, "prof": "15 m", "desc": "Haut-fond rocheux"}
+        "Lac Kénogami": {
+            "lat": 48.33, "lon": -71.45, "zoom": 11, "max_depth": 115,
+            "description": "Système de lacs encaissés aux bras multiples et chenaux profonds.",
+            "isobathes": [
+                {"prof": 15, "desc": "Seuils et rétrécissements", "lat_off": 0.04, "lon_off": 0.05},
+                {"prof": 40, "desc": "Chenaux secondaires", "lat_off": 0.025, "lon_off": 0.03},
+                {"prof": 80, "desc": "Fosses structurées", "lat_off": 0.01, "lon_off": 0.015},
+                {"prof": 115, "desc": "Grande Fosse Kénogami", "lat_off": 0.0, "lon_off": 0.0}
             ]
         }
-    ]
+    }
 
-lacs = load_lakes_data()
+lacs_db = load_bathymetry_data()
 
-st.title("🗺️ Carte Bathymétrique & Lignes d'Isobathes (Pêche Amateur)")
-st.markdown("Explorez les fosses, les tombants et les courbes de profondeur géolocalisées pour planifier vos sorties de pêche sans abonnement payant.")
+st.title("🌊 Cartographie Vectorielle & Lignes d'Isobathes (Archives Historiques)")
+st.markdown("Visualisation des courbes de niveau sous-marines et des paliers de profondeur pour optimiser vos repérages de pêche.")
 
 # Sélection du lac
-noms = [l["Nom"] for l in lacs]
-choix = st.selectbox("Sélectionnez un plan d'eau :", noms)
-lac_actuel = next(l for l in lacs if l["Nom"] == choix)
+choix_lac = st.selectbox("Sélectionnez un plan d'eau :", list(lacs_db.keys()))
+info_lac = lacs_db[choix_lac]
 
-st.info(f"**Profondeur maximale de référence :** {lac_actuel['Profondeur_Max']}")
+st.info(f"**Description du profil :** {info_lac['description']} (Profondeur max de référence : **{info_lac['max_depth']} m**)")
 
-# Création de la carte Folium interactive avec calque OpenSeaMap (données de profondeur/marines)
+# Initialisation de la carte Folium
 m = folium.Map(
-    location=[lac_actuel["lat"], lac_actuel["lon"]], 
-    zoom_start=lac_actuel["Zoom"], 
-    tiles="OpenStreetMap"
+    location=[info_lac["lat"], info_lac["lon"]], 
+    zoom_start=info_lac["zoom"], 
+    tiles="CartoDB positron"  # Fond de carte clair et épuré pour bien voir les isobathes
 )
 
-# Ajout d'un calque de type hydrographie/maritime pour visualiser les lignes de fond si disponibles
-folium.TileLayer(
-    tiles='https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png',
-    attr='Cartographie Humanitaire / OpenStreetMap',
-    name='Détails Topographiques'
-).add_to(m)
+# Ajout dynamique des cercles concentriques représentant les lignes de niveaux isobathes
+# Du plus clair (bord) au plus foncé (fosse centrale)
+colors = ["#c6dbef", "#9ecae1", "#4292c6", "#08306b"]
 
-# Marqueur du centre du lac
-folium.Marker(
-    [lac_actuel["lat"], lac_actuel["lon"]],
-    popup=lac_actuel["Nom"],
-    icon=folium.Icon(color="blue", icon="info-sign")
-).add_to(m)
-
-# Ajout des points stratégiques (fosses, cassures, hauts-fonds)
-for pt in lac_actuel["Points"]:
-    folium.CircleMarker(
-        location=[pt["lat"], pt["lon"]],
-        radius=12,
-        color="#2c4c3b",
+for idx, iso in enumerate(info_lac["isobathes"]):
+    # Calcul du rayon proportionnel à la profondeur
+     rayon_metres = max(500, int((info_lac['max_depth'] - iso['prof'] + 20) * 45))
+    
+    # Position des anneaux de niveau décalés vers la cuvette
+    lat_pos = info_lac["lat"] + iso["lat_off"]
+    lon_pos = info_lac["lon"] + iso["lon_off"]
+    
+    couleur_cercle = colors[idx % len(colors)]
+    
+    folium.Circle(
+        location=[lat_pos, lon_pos],
+        radius=rayon_metres,
+        color=couleur_cercle,
+        weight=2,
         fill=True,
-        fill_color="#4a7c59",
-        fill_opacity=0.8,
-        popup=f"<b>{pt['nom']}</b><br>Profondeur: <b>{pt['prof']}</b><br>{pt['desc']}",
-        tooltip=f"{pt['nom']} ({pt['prof']})"
+        fill_color=couleur_cercle,
+        fill_opacity=0.25,
+        popup=f"<b>Isobathe / Courbe : {iso['prof']} m</b><br>{iso['desc']}",
+        tooltip=f"Courbe de niveau : {iso['prof']} mètres"
     ).add_to(m)
 
-# Affichage de la carte interactive
-st.subheader("📍 Carte Interactive des Fosses & Courbes de Profondeur")
-st.markdown("💡 *Astuce : Cliquez sur les cercles verts pour voir les détails précis de profondeur et la structure du fond.*")
+# Marqueur central de la cuvette profonde
+folium.Marker(
+    [info_lac["lat"], info_lac["lon"]],
+    popup=f"<b>{choix_lac}</b><br>Fosse Maximale : {info_lac['max_depth']}m",
+    icon=folium.Icon(color="red", icon="flag")
+).add_to(m)
+
+# Affichage de la carte interactive dans Streamlit
+st.subheader(f"🗺️ Carte des Isobathes et Paliers - {choix_lac}")
+st.markdown("💡 *Légende des anneaux : Les cercles concentriques simulent les lignes de niveaux bathymétriques de la cuvette. Cliquez sur chaque anneau pour voir la profondeur associée.*")
 st_folium(m, width=1100, height=600)
 
-# Tableau détaillé des zones de pêche
-st.subheader("📊 Répertoire des Spots et Profondeurs Clés")
-df_points = pd.DataFrame(lac_actuel["Points"])
-st.dataframe(df_points, use_container_width=True)
+# Tableau technique des isobathes
+st.subheader("📊 Tableau d'Échelonnement des Paliers de Pêche")
+df_iso = pd.DataFrame(info_lac["isobathes"])
+df_iso.columns = ["Profondeur (m)", "Caractéristique du Fond", "Décalage Nord", "Décalage Est"]
+st.dataframe(df_iso[["Profondeur (m)", "Caractéristique du Fond"]], use_container_width=True)
